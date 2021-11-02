@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://momentjs.com/downloads/moment-timezone-with-data.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/handlebars@4.7.7/dist/handlebars.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      body,
+      html {
+        background-color: #eeeeee;
+        font-family: "Roboto", sans-serif;
+      }
+
+      .container {
+        padding: 1.5rem;
+        max-width: 1000px;
+        margin: 0px auto;
+      }
+
+      .card {
+        border: 1px solid rgba(0, 0, 0, 0.125);
+        border-radius: 0.25rem;
+      }
+
+      .card.white {
+        background-color: white;
+      }
+
+      .card.blue {
+        background-color: rgba(103, 195, 233, 0.5);
+      }
+
+      .card-header {
+        padding: 0.5rem 1rem;
+        margin-bottom: 0;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+        display: flex;
+        align-items: center;
+      }
+
+      .card-body {
+        flex: 1 1 auto;
+        padding: 1rem;
+      }
+
+      .media {
+        display: flex;
+      }
+
+      .media-body {
+        flex: 1;
+      }
+
+      .media-title {
+        font-size: 20px;
+        margin: 0px;
+        color: black;
+      }
+
+      .shadow {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+      }
+
+      .img-avatar {
+        border-radius: 50%;
+      }
+
+      .img-media {
+        max-height: 130px;
+        width: auto;
+      }
+
+      .author-name {
+        color: orangered;
+        font-weight: bold;
+      }
+
+      .text-muted {
+        color: #6c757d !important;
+      }
+
+      .mb-1 {
+        margin-bottom: 1rem;
+      }
+
+      .me-1 {
+        margin-right: 1rem;
+      }
+
+      a {
+        text-decoration: none;
+      }
+    </style>
+    <title>Template and styling</title>
+  </head>
+  <body>
+    <div id="target" class="container"></div>
+
+    <script id="template" type="text/x-handlebars-template">
+      <h1>{{title}}</h1>
+      <p>Your current timezone is: {{timezone}}</p>
+      {{#each list}}
+        {{card @index this}}
+      {{/each}}
+    </script>
+  </body>
+
+  <script>
+    async function fetchData() {
+      var postsData = await $.get("http://maqe.github.io/json/posts.json")
+        .done(function (data) {
+          return data;
+        })
+        .fail(function () {
+          return null;
+        });
+
+      var authorsData = await $.get("http://maqe.github.io/json/authors.json")
+        .done(function (data) {
+          return data;
+        })
+        .fail(function () {
+          return null;
+        });
+
+      if (!authorsData || !postsData) {
+        alert("can not fetch data");
+        return [];
+      }
+
+      // re structure JSON
+      let data = postsData.map((post) => {
+        return {
+          ...post,
+          created_at: moment(post.created_at).format(
+            "dddd, MMMM D, YYYY, h:mm"
+          ),
+          author_data: authorsData.filter(
+            (author) => parseInt(author.id) === parseInt(post.author_id)
+          )[0],
+        };
+      });
+
+      return data;
+    }
+
+    window.onload = async function () {
+      //   fetch data form api
+      var list = await fetchData();
+
+      //Grab the inline template
+      var template = document.getElementById("template").innerHTML;
+
+      Handlebars.registerHelper("card", function (index, data) {
+        var result = `
+        <div class="card ${
+          (parseInt(index) + 1) % 2 !== 0 ? "white" : "blue"
+        } shadow mb-1">
+          <div class="card-header">
+            <img
+              src=${data.author_data.avatar_url}
+              alt=${data.author_data.avatar_url}
+              class="img-avatar"
+              width="30"
+              height="30"
+            />
+            &nbsp;<span class="author-name">${data.author_data.name}</span>
+            &nbsp;
+            <span class="text-muted">
+              posted on
+              ${data.created_at}
+            </span>
+          </div>
+          <div class="card-body">
+            <div class="media">
+              <img
+                src=${data.image_url}
+                alt=${data.image_url}
+                class="me-1 img-media"
+              />
+              <div class="media-body">
+                <a href="#"><h5 class="mt-0 media-title">${data.title}</h5></a>
+                <p>${data.body}</p>
+              </div>
+            </div>
+          </div>
+        </div>`;
+        return new Handlebars.SafeString(result);
+      });
+
+      //Compile the template
+      var compiled_template = Handlebars.compile(template);
+
+      // data
+      var data = {
+        title: "MAQE Forum",
+        timezone: moment.tz.guess(),
+        list: list,
+      };
+
+      //Render the data into the template
+      var rendered = compiled_template(data);
+
+      //Overwrite the contents of #target with the renderer HTML
+      document.getElementById("target").innerHTML = rendered;
+    };
+  </script>
+</html>
